@@ -1,7 +1,8 @@
 # FishNetReqRes
-A Request and response addon for [FishNet](https://github.com/FirstGearGames/FishNet)
+My add-ons for [FishNet](https://github.com/FirstGearGames/FishNet)
 
-## How to use it
+## Request - Response
+### How to use it
 
 Attach `RequestResponseManager` to any game object, but it must be able to access to network manager, then set ref of network manager to it.
 
