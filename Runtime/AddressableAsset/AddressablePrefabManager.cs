@@ -22,12 +22,16 @@ namespace FishNet.Insthync.AddressableAsset
         [SerializeField]
         private string _spawnableCollectionId = "AddressablePrefabs";
 
+        private SinglePrefabObjects _singlePrefabObjects;
         private List<AssetReferenceNetworkObject> _loadedAssetReferences = new List<AssetReferenceNetworkObject>();
 
         private void Awake()
         {
             if (_networkManager == null)
                 _networkManager = GetComponentInParent<NetworkManager>();
+            ushort id = _spawnableCollectionId.GetStableHashU16();
+            SinglePrefabObjects spawnablePrefabs = (SinglePrefabObjects)_networkManager.GetPrefabObjects<SinglePrefabObjects>(id, true);
+            _singlePrefabObjects = spawnablePrefabs;
         }
 
         /// <summary>
@@ -36,17 +40,20 @@ namespace FishNet.Insthync.AddressableAsset
         /// <returns></returns>
         public async Task LoadAllPrefabs()
         {
-            ushort id = _spawnableCollectionId.GetStableHashU16();
-            SinglePrefabObjects spawnablePrefabs = (SinglePrefabObjects)_networkManager.GetPrefabObjects<SinglePrefabObjects>(id, true);
             List<Task<NetworkObject>> ops = new List<Task<NetworkObject>>();
             for (int i = 0; i < _assetReferences.Count; ++i)
             {
                 if (_assetReferences[i].IsDataValid())
                 {
-                    ops.Add(LoadPrefab(spawnablePrefabs, _assetReferences[i]));
+                    ops.Add(LoadPrefab(_singlePrefabObjects, _assetReferences[i]));
                 }
             }
             await Task.WhenAll(ops);
+        }
+
+        public Task<NetworkObject> LoadPrefab(AssetReferenceNetworkObject assetRef)
+        {
+            return LoadPrefab(_singlePrefabObjects, assetRef);
         }
 
         private async Task<NetworkObject> LoadPrefab(SinglePrefabObjects spawnablePrefabs, AssetReferenceNetworkObject assetRef)
