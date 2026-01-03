@@ -1,3 +1,4 @@
+using FishNet.Managing;
 using FishNet.Managing.Object;
 using FishNet.Object;
 using Insthync.AddressableAssetTools;
@@ -49,6 +50,43 @@ namespace FishNet.Insthync.AddressableAsset
             {
                 if (!_assetReferences[i].IsDataValid())
                     _assetReferences.RemoveAt(i);
+            }
+        }
+        public override void Clear()
+        {
+            base.Clear();
+            _assetReferences.Clear();
+        }
+
+        public override int GetObjectCount()
+        {
+            return Prefabs.Count + AssetReferences.Count;
+        }
+
+        public override NetworkObject GetObject(bool asServer, int id)
+        {
+            if (id < 0)
+            {
+                NetworkManagerExtensions.LogError($"PrefabId {id} is out of range.");
+                return null;
+            }
+            else if (id >= GetObjectCount())
+            {
+                NetworkManagerExtensions.LogError($"PrefabId {id} is out of range.");
+                return null;
+            }
+            else if (id >= Prefabs.Count)
+            {
+                int index = id - Prefabs.Count;
+                return AssetReferences[index].GetOrLoadAsset<NetworkObject>();
+            }
+            else
+            {
+                NetworkObject nob = Prefabs[id];
+                if (nob == null)
+                    NetworkManagerExtensions.LogError($"Prefab on id {id} is null.");
+
+                return nob;
             }
         }
     }
