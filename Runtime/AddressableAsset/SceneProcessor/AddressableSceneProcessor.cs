@@ -1,4 +1,5 @@
 using FishNet.Managing.Scened;
+using Insthync.AddressableAssetTools;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -7,18 +8,21 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
+using UnitySceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace FishNet.Insthync.AddressableAsset
 {
     public class AddressableSceneProcessor : DefaultSceneProcessor
     {
+        [SerializeField]
+        private List<AssetReferenceScene> _loadableScenes = new List<AssetReferenceScene>();
         private AsyncOperationHandle<SceneInstance> _currentAddressableAsyncOp;
         private readonly List<AsyncOperationHandle<SceneInstance>> _loadingAsyncOps = new List<AsyncOperationHandle<SceneInstance>>();
         private readonly Dictionary<int, AsyncOperationHandle<SceneInstance>> _loadedAddressableScenesByHandle = new Dictionary<int, AsyncOperationHandle<SceneInstance>>();
 
         private static bool IsSceneInBuild(string sceneName)
         {
-            int sceneCount = UnityEngine.SceneManagement.SceneManager.sceneCountInBuildSettings;
+            int sceneCount = UnitySceneManager.sceneCountInBuildSettings;
 
             for (int i = 0; i < sceneCount; ++i)
             {
@@ -31,6 +35,15 @@ namespace FishNet.Insthync.AddressableAsset
             }
 
             return false;
+        }
+
+        public override void Initialize(Managing.Scened.SceneManager manager)
+        {
+            base.Initialize(manager);
+            foreach (var assetRef in _loadableScenes)
+            {
+                AddLoadableScene(assetRef);
+            }
         }
 
         public override void LoadStart(LoadQueueData queueData)
@@ -67,8 +80,13 @@ namespace FishNet.Insthync.AddressableAsset
                 base.BeginLoadAsync(sceneName, parameters);
                 return;
             }
+            if (!s_SceneNameToRuntimeKey.TryGetValue(sceneName, out var runtimeKey))
+            {
+                Debug.LogError($"Unable to load addressable scene {sceneName}, its asset reference may not added to loadable collection, try use `AddressableSceneProcessor.AddLoadableScene()` function to add it.");
+                return;
+            }
             // Determine that the `sceneName` is adressable key
-            var newOp = Addressables.LoadSceneAsync(sceneName, parameters, false);
+            var newOp = Addressables.LoadSceneAsync(runtimeKey, parameters, false);
             _loadingAsyncOps.Add(newOp);
             _currentAddressableAsyncOp = newOp;
         }
@@ -156,6 +174,23 @@ namespace FishNet.Insthync.AddressableAsset
             } while (notDone);
 
             yield break;
+        }
+
+
+        private static Dictionary<string, object> s_SceneNameToRuntimeKey = new Dictionary<string, object>();
+        private static Dictionary<object, string> s_RuntimeKeyToSceneName = new Dictionary<object, string>();
+        public static string AddLoadableScene(AssetReferenceScene assetRef)
+        {
+            return AddLoadableScene(assetRef.RuntimeKey, assetRef.SceneName);
+        }
+
+        public static string AddLoadableScene(object runtimeKey, string sceneName)
+        {
+            if (s_RuntimeKeyToSceneName.ContainsKey(runtimeKey))
+                return sceneName;
+            s_SceneNameToRuntimeKey[sceneName] = runtimeKey;
+            s_RuntimeKeyToSceneName[runtimeKey] = sceneName;
+            return sceneName;
         }
     }
 }
