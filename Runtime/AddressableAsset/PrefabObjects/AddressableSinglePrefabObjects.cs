@@ -26,21 +26,19 @@ namespace FishNet.Insthync.AddressableAsset
             int i = 0;
             if (startIndex > Prefabs.Count)
                 i = startIndex - Prefabs.Count;
-            List<Task<NetworkObject>> ops = new List<Task<NetworkObject>>();
+            List<Task> ops = new List<Task>();
             for (; i < _assetReferences.Count; ++i)
             {
                 int prefabIndex = Prefabs.Count + i;
-                if (_assetReferences[i].IsDataValid())
-                    ops.Add(LoadPrefab(prefabIndex, _assetReferences[i]));
+                ops.Add(LoadPrefab(prefabIndex, _assetReferences[i]));
             }
             await Task.WhenAll(ops);
         }
 
-        private async Task<NetworkObject> LoadPrefab(int prefabIndex, AssetReferenceNetworkObject assetRef)
+        private async Task LoadPrefab(int prefabIndex, AssetReferenceNetworkObject assetRef)
         {
             NetworkObject prefab = await assetRef.GetOrLoadAssetAsync<NetworkObject>();
             ManagedObjects.InitializePrefab(prefab, prefabIndex, CollectionId);
-            return prefab;
         }
 
         public override void RemoveNull()
@@ -78,7 +76,11 @@ namespace FishNet.Insthync.AddressableAsset
             else if (id >= Prefabs.Count)
             {
                 int index = id - Prefabs.Count;
-                return AssetReferences[index].GetOrLoadAsset<NetworkObject>();
+                NetworkObject nob = AssetReferences[index].GetOrLoadAsset<NetworkObject>();
+                if (nob == null)
+                    NetworkManagerExtensions.LogError($"Prefab on id {id} is null.");
+
+                return nob;
             }
             else
             {
