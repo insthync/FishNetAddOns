@@ -123,7 +123,7 @@ namespace FishNet.Insthync.AddressableAsset
             }
             else if (_currentAddressableAsyncOp.IsValid())
             {
-                return _currentAddressableAsyncOp.PercentComplete >= 0.9f;
+                return _currentAddressableAsyncOp.IsDone;
             }
             return false;
         }
