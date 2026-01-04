@@ -18,7 +18,6 @@ namespace FishNet.Insthync.AddressableAsset
         private List<AssetReferenceScene> _loadableScenes = new List<AssetReferenceScene>();
         private AsyncOperationHandle<SceneInstance> _currentAddressableAsyncOp;
         private readonly List<AsyncOperationHandle<SceneInstance>> _loadingAsyncOps = new List<AsyncOperationHandle<SceneInstance>>();
-        private readonly Dictionary<int, AsyncOperationHandle<SceneInstance>> _loadedAddressableScenesByHandle = new Dictionary<int, AsyncOperationHandle<SceneInstance>>();
 
         private static bool IsSceneInBuild(string sceneName)
         {
@@ -85,7 +84,6 @@ namespace FishNet.Insthync.AddressableAsset
                 Debug.LogError($"Unable to load addressable scene {sceneName}, its asset reference may not added to loadable collection, try use `AddressableSceneProcessor.AddLoadableScene()` function to add it.");
                 return;
             }
-            // Determine that the `sceneName` is adressable key
             var newOp = Addressables.LoadSceneAsync(runtimeKey, parameters, false);
             _loadingAsyncOps.Add(newOp);
             _currentAddressableAsyncOp = newOp;
@@ -93,17 +91,28 @@ namespace FishNet.Insthync.AddressableAsset
 
         public override void BeginUnloadAsync(Scene scene)
         {
-            if (!_loadedAddressableScenesByHandle.TryGetValue(scene.handle, out var loadHandle))
+            if (!TryGetLoadingAsyncOp(scene, out var loadHandle))
             {
-                // Scene is not loaded by addressable asset system?
                 base.BeginUnloadAsync(scene);
                 return;
             }
-            // Scene is loaded by addressable asset system
-            var unloadHandle = Addressables.UnloadSceneAsync(loadHandle, false);
+            var unloadHandle = Addressables.UnloadSceneAsync(loadHandle, true);
+            _loadingAsyncOps.Remove(loadHandle);
             _currentAddressableAsyncOp = unloadHandle;
-            _loadedAddressableScenesByHandle.Remove(scene.handle);
-            Scenes.Remove(scene);
+        }
+
+        private bool TryGetLoadingAsyncOp(Scene scene, out AsyncOperationHandle<SceneInstance> result)
+        {
+            foreach (var loadingAsyncOp in _loadingAsyncOps)
+            {
+                if (loadingAsyncOp.Result.Scene.handle == scene.handle)
+                {
+                    result = loadingAsyncOp;
+                    return true;
+                }
+            }
+            result = default;
+            return false;
         }
 
         public override bool IsPercentComplete()
@@ -114,14 +123,7 @@ namespace FishNet.Insthync.AddressableAsset
             }
             else if (_currentAddressableAsyncOp.IsValid())
             {
-                bool isDone = _currentAddressableAsyncOp.IsDone;
-                if (isDone)
-                {
-                    Scene scene = _currentAddressableAsyncOp.Result.Scene;
-                    if (_loadedAddressableScenesByHandle.TryAdd(scene.handle, _currentAddressableAsyncOp))
-                        Scenes.Add(scene);
-                }
-                return isDone;
+                return _currentAddressableAsyncOp.PercentComplete >= 0.9f;
             }
             return false;
         }
