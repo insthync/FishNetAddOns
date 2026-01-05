@@ -14,8 +14,6 @@ namespace FishNet.Insthync.AddressableAsset
 {
     public class AddressableSceneProcessor : DefaultSceneProcessor
     {
-        [SerializeField]
-        private List<AssetReferenceScene> _loadableScenes = new List<AssetReferenceScene>();
         private AsyncOperationHandle<SceneInstance> _currentAddressableAsyncOp;
         private readonly List<AsyncOperationHandle<SceneInstance>> _loadingAsyncOps = new List<AsyncOperationHandle<SceneInstance>>();
 
@@ -34,15 +32,6 @@ namespace FishNet.Insthync.AddressableAsset
             }
 
             return false;
-        }
-
-        public override void Initialize(Managing.Scened.SceneManager manager)
-        {
-            base.Initialize(manager);
-            foreach (var assetRef in _loadableScenes)
-            {
-                AddLoadableScene(assetRef);
-            }
         }
 
         public override void LoadStart(LoadQueueData queueData)
