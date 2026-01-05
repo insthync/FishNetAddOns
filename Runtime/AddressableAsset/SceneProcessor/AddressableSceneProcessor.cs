@@ -81,8 +81,13 @@ namespace FishNet.Insthync.AddressableAsset
             }
             if (!s_SceneNameToRuntimeKey.TryGetValue(sceneName, out var runtimeKey))
             {
-                Debug.LogError($"Unable to load addressable scene {sceneName}, its asset reference may not added to loadable collection, try use `AddressableSceneProcessor.AddLoadableScene()` function to add it.");
-                return;
+                if (!AddressableAssetsManager.TryGetRuntimeKeyBySceneName(sceneName, out runtimeKey))
+                {
+                    Debug.LogError($"Unable to load addressable scene {sceneName}, its asset reference may not added to loadable collection, try use `AddressableSceneProcessor.AddLoadableScene()` function to add it.");
+                    return;
+                }
+                // Store to cache, so next time is faster.
+                AddLoadableScene(runtimeKey, sceneName);
             }
             var newOp = Addressables.LoadSceneAsync(runtimeKey, parameters, false);
             _loadingAsyncOps.Add(newOp);
