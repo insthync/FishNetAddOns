@@ -4,11 +4,11 @@ using System;
 
 namespace FishNet.Insthync.LiteNetLibSerializing
 {
-    public static class ReaderExtensions
+    public static class FishNetReaderExtensions
     {
         public static NetDataReader LiteNetLibReader = new NetDataReader();
 
-        public static T ReadLiteNetLib<T>(this Reader reader)
+        public static T LiteNetLibRead<T>(this Reader reader)
             where T : struct, INetSerializable
         {
             byte[] bytes = reader.ReadUInt8ArrayAndSizeAllocated();
@@ -18,7 +18,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
             return result;
         }
 
-        public static T ReadLiteNetLib<T>(this Reader reader, Func<T> constructor)
+        public static T LiteNetLibRead<T>(this Reader reader, Func<T> constructor)
             where T : class, INetSerializable
         {
             byte[] bytes = reader.ReadUInt8ArrayAndSizeAllocated();

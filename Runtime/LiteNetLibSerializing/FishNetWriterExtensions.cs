@@ -3,11 +3,11 @@ using LiteNetLib.Utils;
 
 namespace FishNet.Insthync.LiteNetLibSerializing
 {
-    public static class WriterExtensions
+    public static class FishNetWriterExtensions
     {
         public static NetDataWriter LiteNetLibWriter = new NetDataWriter();
 
-        public static void WriteLiteNetLib<T>(this Writer writer, T serializable)
+        public static void LiteNetLibWrite<T>(this Writer writer, T serializable)
             where T : INetSerializable
         {
             LiteNetLibWriter.Reset();
