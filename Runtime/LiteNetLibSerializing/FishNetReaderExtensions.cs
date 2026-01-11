@@ -9,7 +9,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
         // NOTE: I don't think serialization will be called concurrently, but if it is this will need to be changed to a pool or something similar.
         public static readonly NetDataReader LiteNetLibReader = new NetDataReader();
 
-        public static T LiteNetLibRead<T>(this Reader reader)
+        public static T Get<T>(this Reader reader)
             where T : struct, INetSerializable
         {
             byte[] bytes = reader.ReadUInt8ArrayAndSizeAllocated();
@@ -19,7 +19,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
             return result;
         }
 
-        public static T LiteNetLibRead<T>(this Reader reader, Func<T> constructor)
+        public static T Get<T>(this Reader reader, Func<T> constructor)
             where T : class, INetSerializable
         {
             byte[] bytes = reader.ReadUInt8ArrayAndSizeAllocated();

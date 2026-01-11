@@ -8,6 +8,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
 {
     public class DataSerializerGeneratorWindow : EditorWindow
     {
+        private string ns = "FishNet.Insthync.LiteNetLibSerializing";
         private string className = "LiteNetLibSerializer";
         private string savePath = "Assets/Generated/LiteNetLibSerializer.cs";
 
@@ -23,6 +24,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
             GUILayout.Label("LiteNetLib Serializer Generator", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
+            ns = EditorGUILayout.TextField("Namespace", ns);
             className = EditorGUILayout.TextField("Class Name", className);
 
             EditorGUILayout.BeginHorizontal();
@@ -40,7 +42,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
 
             if (GUILayout.Button("Generate", GUILayout.Height(30)))
             {
-                Generate(className, savePath);
+                Generate(ns, className, savePath);
             }
 
             GUI.enabled = true;
@@ -67,7 +69,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
             }
         }
 
-        private static void Generate(string className, string savePath)
+        private static void Generate(string ns, string className, string savePath)
         {
             var types = TypeCache.GetTypesDerivedFrom<INetSerializable>();
 
@@ -75,9 +77,9 @@ namespace FishNet.Insthync.LiteNetLibSerializing
             sb.AppendLine("// Generated from menu: `Tools/Fish-Networking/Insthync/Generate LiteNetLib Serializer`");
             sb.AppendLine("using FishNet.Serializing;");
             sb.AppendLine($@"
-namespace FishNet.Insthync.LiteNetLibSerializing
+namespace {ns}
 {{
-    public static class {className}
+    public static partial class {className}
     {{");
 
             foreach (var t in types)
@@ -94,7 +96,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
                     sb.AppendLine($@"
         public static {t.Name} Read{t.Name}(this Reader reader)
         {{
-            return reader.LiteNetLibRead<{t.Name}>();
+            return reader.Get<{t.Name}>();
         }}");
                 }
                 else if (isClass)
@@ -102,7 +104,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
                     sb.AppendLine($@"
         public static {t.Name} Read{t.Name}(this Reader reader)
         {{
-            return reader.LiteNetLibRead<{t.Name}>(new {t.Name}());
+            return reader.Get<{t.Name}>(new {t.Name}());
         }}");
                 }
                 else
@@ -114,7 +116,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
                 sb.AppendLine($@"
         public static void Write{t.Name}(this Writer writer, {t.Name} data)
         {{
-            writer.LiteNetLibWrite(data);
+            writer.Put(data);
         }}");
             }
             sb.AppendLine($@"
