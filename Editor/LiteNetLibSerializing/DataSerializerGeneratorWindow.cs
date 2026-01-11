@@ -10,7 +10,7 @@ namespace FishNet.Insthync.LiteNetLibSerializing
     {
         private string ns = "FishNet.Insthync.LiteNetLibSerializing";
         private string className = "LiteNetLibSerializer";
-        private string savePath = "Assets/Generated/LiteNetLibSerializer.cs";
+        private string savePath = "Assets/Generated/LiteNetLibSerializer.generated.cs";
 
         [MenuItem("Tools/Fish-Networking/Insthync/Generate LiteNetLib Serializer")]
         public static void Open()
