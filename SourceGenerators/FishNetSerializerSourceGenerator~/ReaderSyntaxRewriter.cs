@@ -52,40 +52,35 @@ namespace FishNetSerializerSourceGenerator
             if (parent == null)
                 return base.VisitInvocationExpression(node);
 
-            var leftSymbol = _model.GetSymbolInfo(parent.Left).Symbol;
-
-            if (leftSymbol is IFieldSymbol field && !field.IsStatic)
+            // Map field type to reader method
+            if (MethodMap.TryGetValue(symbol.ReturnType.SpecialType, out var readerMethod))
             {
-                // Map field type to reader method
-                if (MethodMap.TryGetValue(field.Type.SpecialType, out var readerMethod))
-                {
-                    // Rebuild invocation: reader.Read{readerMethod}()
-                    return SyntaxFactory.InvocationExpression(
-                        // reader.Read{readerMethod}
-                        SyntaxFactory.MemberAccessExpression(
-                            SyntaxKind.SimpleMemberAccessExpression,
-                            SyntaxFactory.IdentifierName("reader"),
-                            SyntaxFactory.IdentifierName(readerMethod)),
-                        // () - zero arguments
-                        SyntaxFactory.ArgumentList());
-                }
-                else if (field.Type.AllInterfaces.Any(i => i.Name == "INetSerializable"))
-                {
-                    // Keep generic type arguments
-                    var genericArgs = symbol.TypeArguments;
-                    // Rebuild invocation: reader.Read<T>()
-                    return SyntaxFactory.InvocationExpression(
-                        // reader.Read
-                        SyntaxFactory.GenericName(
-                            SyntaxFactory.Identifier("reader.Read"),
-                            // <T1, T2, ...>
-                            SyntaxFactory.TypeArgumentList(
-                                SyntaxFactory.SeparatedList<TypeSyntax>(
-                                    genericArgs.Select(t =>
-                                        SyntaxFactory.ParseTypeName(t.ToDisplayString()))))),
-                        // () - zero arguments
-                        SyntaxFactory.ArgumentList());
-                }
+                // Rebuild invocation: reader.Read{readerMethod}()
+                return SyntaxFactory.InvocationExpression(
+                    // reader.Read{readerMethod}
+                    SyntaxFactory.MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        SyntaxFactory.IdentifierName("reader"),
+                        SyntaxFactory.IdentifierName(readerMethod)),
+                    // () - zero arguments
+                    SyntaxFactory.ArgumentList());
+            }
+            else if (symbol.ReturnType.AllInterfaces.Any(i => i.Name == "INetSerializable"))
+            {
+                // Keep generic type arguments
+                var genericArgs = symbol.TypeArguments;
+                // Rebuild invocation: reader.Read<T>()
+                return SyntaxFactory.InvocationExpression(
+                    // reader.Read
+                    SyntaxFactory.GenericName(
+                        SyntaxFactory.Identifier("reader.Read"),
+                        // <T1, T2, ...>
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SeparatedList<TypeSyntax>(
+                                genericArgs.Select(t =>
+                                    SyntaxFactory.ParseTypeName(t.ToDisplayString()))))),
+                    // () - zero arguments
+                    SyntaxFactory.ArgumentList());
             }
 
             return base.VisitInvocationExpression(node);
