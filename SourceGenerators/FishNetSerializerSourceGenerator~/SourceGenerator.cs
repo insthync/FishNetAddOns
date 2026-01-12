@@ -75,6 +75,7 @@ namespace FishNetSerializerSourceGenerator
 
             sb.AppendLine($@"
 using FishNet.Serializing;
+using FishNet.Insthync.LiteNetLibSerializing;
 
 namespace {Helpers.Namespace}
 {{
