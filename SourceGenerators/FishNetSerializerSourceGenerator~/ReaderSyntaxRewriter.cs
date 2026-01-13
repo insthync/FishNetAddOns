@@ -9,6 +9,7 @@ namespace FishNetSerializerSourceGenerator
     public sealed class ReaderSyntaxRewriter : CSharpSyntaxRewriter
     {
         private readonly SemanticModel _model;
+        private readonly DiagnosticReporter _reporter;
 
         // Map from field type -> reader method
         private static readonly Dictionary<SpecialType, string> MethodMap =
@@ -29,9 +30,10 @@ namespace FishNetSerializerSourceGenerator
             { SpecialType.System_String, "ReadStringAllocated" }
             };
 
-        public ReaderSyntaxRewriter(SemanticModel model)
+        public ReaderSyntaxRewriter(SemanticModel model, DiagnosticReporter reporter)
         {
             _model = model;
+            _reporter = reporter;
         }
 
         public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -40,17 +42,69 @@ namespace FishNetSerializerSourceGenerator
             if (symbol == null)
                 return base.VisitInvocationExpression(node);
 
-            // Only target Reader.GetX calls
-            if (!symbol.Name.StartsWith("Get"))
+            if (!SyntaxRewritterHelper.IsReaderMethod(_reporter, _model, node))
                 return base.VisitInvocationExpression(node);
 
-            if (symbol.ContainingType.Name != "NetDataReader")
-                return base.VisitInvocationExpression(node);
+            // -------------------------
+            // ARRAY SUPPORT
+            // -------------------------
+            if (symbol.ReturnType is IArrayTypeSymbol arrayType)
+            {
+                // Keep generic type arguments
+                var elementType = arrayType.ElementType;
+                // Rebuild invocation: reader.ReadArrayAllocated<TType>()
+                return SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.GenericName(
+                        // reader.ReadArrayAllocated
+                        SyntaxFactory.Identifier("reader.ReadArrayAllocated"),
+                        // <T1, T2, ...>
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                                SyntaxFactory.ParseTypeName(
+                                    elementType.ToDisplayString())))),
+                    // () - zero arguments
+                    SyntaxFactory.ArgumentList());
+            }
 
-            // Determine field type from left-hand assignment
-            var parent = node.Parent as AssignmentExpressionSyntax;
-            if (parent == null)
-                return base.VisitInvocationExpression(node);
+            // -------------------------
+            // LIST SUPPORT
+            // -------------------------
+            if (SyntaxRewritterHelper.IsListType(symbol.ReturnType, out var listElementType))
+            {
+                // Rebuild invocation: reader.ReadList<TType>()
+                return SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.GenericName(
+                        // reader.ReadList
+                        SyntaxFactory.Identifier("reader.ReadList"),
+                        // <T1, T2, ...>
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                                SyntaxFactory.ParseTypeName(
+                                    listElementType.ToDisplayString())))),
+                    // () - zero arguments
+                    SyntaxFactory.ArgumentList());
+            }
+
+            // -------------------------
+            // DICTIONARY SUPPORT
+            // -------------------------
+            if (SyntaxRewritterHelper.IsDictionary(symbol.ReturnType, out var dictKeyType, out var dictValueType))
+            {
+                // Rebuild invocation: reader.ReadDictionary<TType, TValue>()
+                return SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.GenericName(
+                        // reader.ReadDictionary
+                        SyntaxFactory.Identifier("reader.ReadDictionary"),
+                        // <T1, T2, ...>
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SeparatedList<TypeSyntax>(new[]
+                            {
+                                SyntaxFactory.ParseTypeName(dictKeyType.ToDisplayString()),
+                                SyntaxFactory.ParseTypeName(dictValueType.ToDisplayString())
+                            }))),
+                    // () - zero arguments
+                    SyntaxFactory.ArgumentList());
+            }
 
             // Map field type to reader method
             if (MethodMap.TryGetValue(symbol.ReturnType.SpecialType, out var readerMethod))
@@ -71,8 +125,8 @@ namespace FishNetSerializerSourceGenerator
                 var genericArgs = symbol.TypeArguments;
                 // Rebuild invocation: reader.Read<T>()
                 return SyntaxFactory.InvocationExpression(
-                    // reader.Read
                     SyntaxFactory.GenericName(
+                        // reader.Read
                         SyntaxFactory.Identifier("reader.Read"),
                         // <T1, T2, ...>
                         SyntaxFactory.TypeArgumentList(

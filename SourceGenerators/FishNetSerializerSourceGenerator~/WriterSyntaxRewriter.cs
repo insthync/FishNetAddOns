@@ -9,6 +9,7 @@ namespace FishNetSerializerSourceGenerator
     public sealed class WriterSyntaxRewriter : CSharpSyntaxRewriter
     {
         private readonly SemanticModel _model;
+        private readonly DiagnosticReporter _reporter;
 
         // Map from field type -> writer method
         private static readonly Dictionary<SpecialType, string> MethodMap =
@@ -29,9 +30,10 @@ namespace FishNetSerializerSourceGenerator
             { SpecialType.System_String, "WriteString" },
             };
 
-        public WriterSyntaxRewriter(SemanticModel model)
+        public WriterSyntaxRewriter(SemanticModel model, DiagnosticReporter reporter)
         {
             _model = model;
+            _reporter = reporter;
         }
 
         public override SyntaxNode VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -40,25 +42,80 @@ namespace FishNetSerializerSourceGenerator
             if (symbol == null)
                 return base.VisitInvocationExpression(node);
 
-            // Match Writer.Put(...)
-            if (!symbol.Name.StartsWith("Put"))
-                return base.VisitInvocationExpression(node);
-
-            if (symbol.ContainingType.Name != "NetDataWriter")
-                return base.VisitInvocationExpression(node);
-
-            // Expect exactly one argument
-            if (node.ArgumentList.Arguments.Count != 1)
-                return base.VisitInvocationExpression(node);
-
-            var argument = node.ArgumentList.Arguments[0];
-            var argType = _model.GetTypeInfo(argument.Expression).Type;
-
-            if (argType == null)
+            ArgumentSyntax argument;
+            ITypeSymbol argType = null;
+            if (!SyntaxRewritterHelper.IsWriterMethod(_reporter, _model, node, out argument, out argType))
                 return base.VisitInvocationExpression(node);
 
             // Rewrite instance fields -> data.field
             var rewrittenArg = (ExpressionSyntax)Visit(argument.Expression);
+
+            // -------------------------
+            // ARRAY SUPPORT
+            // -------------------------
+            if (argType is IArrayTypeSymbol arrayType)
+            {
+                // Keep generic type arguments
+                var elementType = arrayType.ElementType;
+                // Rebuild invocation: writer.WriteArray<T>()
+                return SyntaxFactory.InvocationExpression(
+                    // writer.WriteArray
+                    SyntaxFactory.GenericName(
+                        SyntaxFactory.Identifier("writer.WriteArray"),
+                        // <T1, T2, ...>
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                                SyntaxFactory.ParseTypeName(
+                                    elementType.ToDisplayString())))),
+                    // (arg1, arg2, ...)
+                    SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Argument(rewrittenArg))));
+            }
+
+            // -------------------------
+            // LIST SUPPORT
+            // -------------------------
+            if (SyntaxRewritterHelper.IsListType(argType, out var listElementType))
+            {
+                // Rebuild invocation: writer.WriteList<TType>()
+                return SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.GenericName(
+                        // writer.WriteList
+                        SyntaxFactory.Identifier("writer.WriteList"),
+                        // <T1, T2, ...>
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                                SyntaxFactory.ParseTypeName(
+                                    listElementType.ToDisplayString())))),
+                    // (arg1, arg2, ...)
+                    SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Argument(rewrittenArg))));
+            }
+
+            // -------------------------
+            // DICTIONARY SUPPORT
+            // -------------------------
+            if (SyntaxRewritterHelper.IsDictionary(argType, out var dictKeyType, out var dictValueType))
+            {
+                // Rebuild invocation: writer.WriteDictionary<TType, TValue>()
+                return SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.GenericName(
+                        // writer.WriteDictionary
+                        SyntaxFactory.Identifier("writer.WriteDictionary"),
+                        // <T1, T2, ...>
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SeparatedList<TypeSyntax>(new[]
+                            {
+                                SyntaxFactory.ParseTypeName(dictKeyType.ToDisplayString()),
+                                SyntaxFactory.ParseTypeName(dictValueType.ToDisplayString())
+                            }))),
+                    // (arg1, arg2, ...)
+                    SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Argument(rewrittenArg))));
+            }
 
             // Find matching writer method
             if (MethodMap.TryGetValue(argType.SpecialType, out var writerMethod))

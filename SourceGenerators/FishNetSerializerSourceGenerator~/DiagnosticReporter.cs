@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace FishNetSerializerSourceGenerator
 {
-    sealed class DiagnosticReporter : IDiagnosticReporter
+    public sealed class DiagnosticReporter : IDiagnosticReporter
     {
         readonly private GeneratorExecutionContext context;
         public DiagnosticReporter(GeneratorExecutionContext ctx)

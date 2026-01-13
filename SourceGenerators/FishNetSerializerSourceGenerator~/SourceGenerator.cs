@@ -29,7 +29,7 @@ namespace FishNetSerializerSourceGenerator
             diagnostic.LogInfo($"Begin Processing assembly {context.Compilation.AssemblyName}");
             try
             {
-                var codes = GenerateCodes(context.Compilation);
+                var codes = GenerateCodes(context.Compilation, diagnostic);
                 AddGeneratedSources(context, codes);
             }
             catch (Exception e)
@@ -62,7 +62,7 @@ namespace FishNetSerializerSourceGenerator
             context.AddSource(fileName, sourceText);
         }
 
-        private static string GenerateCodes(Compilation compilation)
+        private static string GenerateCodes(Compilation compilation, DiagnosticReporter reporter)
         {
             var interfaceSymbol = compilation.GetTypeByMetadataName("LiteNetLib.Utils.INetSerializable");
             if (interfaceSymbol == null)
@@ -113,7 +113,7 @@ namespace {Helpers.Namespace}
                         sb.Append($@"
         public static void Write{symbol.Name}(this Writer writer, {symbol.Name} data)
         {{");
-                        var rewriterS = new WriterSyntaxRewriter(model);
+                        var rewriterS = new WriterSyntaxRewriter(model, reporter);
                         foreach (var stmt in serializeSyntax.Body.Statements)
                         {
                             var rewritten = rewriterS.Visit(stmt);
@@ -141,7 +141,7 @@ namespace {Helpers.Namespace}
         public static {symbol.Name} Read{symbol.Name}(this Reader reader)
         {{
             {symbol.Name} data = new {symbol.Name}();");
-                        var rewriterD = new ReaderSyntaxRewriter(model);
+                        var rewriterD = new ReaderSyntaxRewriter(model, reporter);
                         foreach (var stmt in deserializeSyntax.Body.Statements)
                         {
                             var rewritten = rewriterD.Visit(stmt);
