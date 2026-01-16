@@ -11,7 +11,6 @@ namespace FishNet.Insthync.AddressableAsset
         }
     }
 
-
     [System.Serializable]
     public class AssetReferenceNetworkBehaviour : AssetReferenceNetworkBehaviour<NetworkBehaviour>
     {
